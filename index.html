@@ -1,0 +1,965 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Takt — a free SpeedCoach for Android</title>
+<meta name="description" content="Takt is a free, open source rowing app for Android: stroke rate, split and GPS from the phone, pieces and workouts, heart-rate strap, Concept2 PM5, GPX and TCX export. No account, no ads.">
+<link rel="canonical" href="https://takt.corentinsueur.com/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Takt — a free SpeedCoach for Android">
+<meta property="og:description" content="Stroke rate, split and GPS from the phone. Pieces, workouts, heart-rate strap, Concept2 PM5, GPX and TCX export. No account, no ads.">
+<meta property="og:url" content="https://takt.corentinsueur.com/">
+<meta property="og:image" content="https://takt.corentinsueur.com/assets/screens/row.webp">
+<meta name="twitter:card" content="summary">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<style>
+/* Personal site — Archipelago tokens, nautical-chart editorial layout.
+   Modes: default follows prefers-color-scheme; [data-mode] (set by the Light/Dark
+   buttons) overrides in both directions. Signature: the depth-contour hero chart. */
+:root {
+  --paper: #FBFCFE; --ink: #12233F; --muted: #52627D; --accent: #2563EB;
+  --hairline: #D8E0EC; --tag-bg: #E9EFF8;
+  --chart-line: rgba(37, 99, 235, 0.16);
+  --chart-text: rgba(82, 98, 125, 0.55);
+  --display: "Helvetica Neue", Helvetica, "Segoe UI", system-ui, sans-serif;
+  --body: "Helvetica Neue", Helvetica, "Segoe UI", system-ui, sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0B1526; --ink: #DCE4F2; --muted: #8FA0BC; --accent: #7DA7F2;
+    --hairline: #24344E; --tag-bg: #16233A;
+    --chart-line: rgba(125, 167, 242, 0.20);
+    --chart-text: rgba(143, 160, 188, 0.60);
+  }
+}
+:root[data-mode="dark"] {
+  --paper: #0B1526; --ink: #DCE4F2; --muted: #8FA0BC; --accent: #7DA7F2;
+  --hairline: #24344E; --tag-bg: #16233A;
+  --chart-line: rgba(125, 167, 242, 0.20);
+  --chart-text: rgba(143, 160, 188, 0.60);
+}
+:root[data-mode="light"] {
+  --paper: #FBFCFE; --ink: #12233F; --muted: #52627D; --accent: #2563EB;
+  --hairline: #D8E0EC; --tag-bg: #E9EFF8;
+  --chart-line: rgba(37, 99, 235, 0.16);
+  --chart-text: rgba(82, 98, 125, 0.55);
+}
+
+html { background: var(--paper); scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  font-family: var(--body);
+  color: var(--ink);
+  background: var(--paper);
+  line-height: 1.6;
+  font-size: 16px;
+}
+.wrap { max-width: 1100px; margin: 0 auto; padding: 28px 32px 72px; }
+@media (max-width: 640px) { .wrap { padding: 20px 20px 56px; } }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  background: var(--paper);
+  border-bottom: 1px solid var(--hairline);
+  padding: 14px 0;
+  margin-bottom: 40px;
+}
+.wordmark { font-family: var(--display); font-weight: 600; font-size: 14px; letter-spacing: 0.02em; }
+a.wordmark { color: var(--ink); }
+a.wordmark:hover { text-decoration: none; color: var(--accent); }
+.top-nav { display: flex; gap: 22px; margin-left: auto; margin-right: 22px; }
+.top-nav a {
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.top-nav a:hover { color: var(--accent); text-decoration: none; }
+.top-nav a[aria-current="page"] { color: var(--accent); }
+.mode-picker {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--tag-bg);
+}
+.mode-picker button {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.mode-picker button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mode-picker button.active { background: var(--accent); color: var(--paper); }
+
+/* Hero with the chart behind it */
+.hero {
+  position: relative;
+  padding: 72px 0 96px;
+  margin-bottom: 64px;
+}
+#chart {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.hero > :not(#chart) { position: relative; }
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin-bottom: 22px;
+}
+h1 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(34px, 6.5vw, 64px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  max-width: 18ch;
+  margin-bottom: 24px;
+}
+.thesis { font-size: 19px; color: var(--muted); max-width: 52ch; margin-bottom: 30px; }
+.now {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 30px;
+}
+.now strong { color: var(--accent); font-weight: 600; }
+
+.links { display: flex; flex-wrap: wrap; gap: 8px 10px; }
+.links a {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  padding: 8px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  color: var(--ink);
+  background: var(--paper);
+}
+.links a:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+.links a.cv-link { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+.links a.cv-link:hover { opacity: 0.9; }
+
+/* Label-rail sections */
+.section {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  gap: 24px 56px;
+  padding: 56px 0;
+  border-top: 1px solid var(--hairline);
+}
+@media (max-width: 760px) { .section { grid-template-columns: 1fr; padding: 40px 0; } }
+h2 {
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+}
+h2::before { content: "— "; }
+.section-body { min-width: 0; }
+
+#about p { font-size: 18px; max-width: 60ch; }
+#about p, .story p, .section-intro, .prose > p, #beyond p, .prose li {
+  text-align: justify;
+  hyphens: auto;
+}
+
+.story + .story { margin-top: 44px; }
+.story-meta {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+h3 { font-family: var(--display); font-weight: 600; font-size: 24px; letter-spacing: -0.01em; margin-bottom: 10px; }
+.story p { max-width: 62ch; }
+
+.timeline { display: flex; flex-direction: column; gap: 18px; }
+.timeline .row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 20px;
+  align-items: baseline;
+}
+.timeline .years {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.timeline .what { max-width: 64ch; }
+.timeline strong { font-family: var(--display); font-weight: 600; }
+@media (max-width: 520px) {
+  .timeline .row { grid-template-columns: 1fr; gap: 2px; }
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--tag-bg);
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+  padding: 5px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.beyond-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 36px;
+}
+@media (max-width: 900px) { .beyond-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 620px) { .beyond-grid { grid-template-columns: 1fr; } }
+.photo-slot {
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  overflow: hidden;
+  background:
+    repeating-radial-gradient(circle at 28% 72%, transparent 0 22px, var(--chart-line) 22px 23px),
+    repeating-radial-gradient(circle at 78% 20%, transparent 0 30px, var(--chart-line) 30px 31px),
+    var(--tag-bg);
+  display: flex;
+  align-items: flex-end;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+.photo-slot.filled { padding: 0; }
+.photo-slot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-slot span {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+#beyond h3 { font-size: 20px; }
+#beyond p { max-width: 48ch; }
+.more-link { margin-top: 28px; font-family: var(--mono); font-size: 13px; }
+
+/* Off hours gallery — uniform 3:2 crops on a grid, aligned rows */
+.section-intro { max-width: 62ch; margin-bottom: 26px; }
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+@media (max-width: 640px) { .gallery { grid-template-columns: 1fr; } }
+.gallery figure { margin: 0; }
+.gallery img {
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  display: block;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+}
+.gallery figcaption {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+/* Diagrams (ai.html) */
+.diagram { margin: 34px 0 8px; }
+.diagram img { width: 100%; height: auto; display: block; border-radius: 8px; border: 1px solid var(--hairline); }
+.diagram svg { width: 100%; height: auto; display: block; }
+.diagram .d-box { fill: var(--tag-bg); stroke: var(--hairline); }
+.diagram .d-box.d-accent { stroke: var(--accent); stroke-width: 1.5; }
+.diagram .d-rail { fill: none; stroke: var(--accent); stroke-dasharray: 4 4; }
+.diagram .d-label { fill: var(--ink); }
+.diagram .d-note { fill: var(--muted); font-size: 10.5px; }
+.diagram .d-cmd { fill: var(--accent); font-size: 10px; }
+.diagram .d-arrow { stroke: var(--muted); stroke-width: 1.2; marker-end: none; }
+.diagram .d-loop { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.diagram .d-life { stroke: var(--hairline); stroke-dasharray: 4 4; }
+.diagram .d-msg { stroke: var(--muted); stroke-width: 1.2; }
+.diagram .d-msg.d-return { stroke-dasharray: 5 4; }
+.diagram .d-head { fill: var(--muted); }
+.diagram .d-x { stroke: var(--accent); stroke-width: 1.6; }
+.diagram .d-mesh { stroke: var(--muted); stroke-width: 1; opacity: 0.4; }
+.diagram .d-ring { fill: none; stroke: var(--accent); stroke-width: 2; }
+.diagram .d-small { fill: var(--ink); font-size: 10.5px; }
+.diagram figcaption {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 10px;
+  text-align: center;
+}
+
+/* Prose pages (ai.html) */
+.prose { max-width: 68ch; }
+.prose code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--tag-bg);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.prose > p { margin-bottom: 18px; font-size: 17px; }
+.prose h3 { margin-top: 40px; margin-bottom: 12px; }
+.prose ul { margin: 0 0 18px 0; padding-left: 20px; }
+.prose li { margin-bottom: 8px; }
+.page-hero { padding: 48px 0 40px; }
+.page-hero h1 { font-size: clamp(30px, 5vw, 48px); max-width: 22ch; }
+
+footer {
+  border-top: 2px solid var(--accent);
+  padding-top: 32px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+}
+.colophon { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 26px 0 22px; }
+.stat { border: 1px solid var(--hairline); background: var(--tag-bg); border-radius: 8px; padding: 14px 16px; }
+.stat b { display: block; font-family: var(--mono); font-size: 24px; line-height: 1.1; color: var(--accent); margin-bottom: 6px; }
+.stat span { font-size: 13px; color: var(--muted); }
+
+.consent {
+  position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 50;
+  max-width: 540px; margin: 0 auto; padding: 16px 18px;
+  background: var(--paper); color: var(--ink);
+  border: 1px solid var(--hairline); border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  font-size: 14px; line-height: 1.5;
+}
+.consent p { margin: 0 0 10px; text-align: left; }
+.consent-title { font-weight: 600; }
+.consent-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.consent button {
+  font: inherit; padding: 7px 16px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--hairline); background: transparent; color: var(--ink);
+}
+.consent button[data-consent="accept"] { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+/* Takt subdomain — additions on top of site.css */
+.now { display: flex; flex-wrap: wrap; align-items: baseline; }
+.now .it { white-space: nowrap; }
+.now .sep { color: var(--hairline); margin: 0 8px; }
+@media (max-width: 560px) {
+  .top { flex-wrap: wrap; }
+  .top-nav { order: 3; flex-basis: 100%; margin: 12px 0 0; gap: 18px; }
+  .mode-picker { margin-left: auto; }
+}
+
+.dl {
+  border: 1px solid var(--hairline);
+  background: var(--tag-bg);
+  border-radius: 8px;
+  padding: 22px 24px;
+  max-width: 62ch;
+  margin-bottom: 26px;
+}
+.dl .links { margin-bottom: 18px; }
+.dl dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 18px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  margin: 0;
+}
+.dl dt { color: var(--muted); }
+.dl dd { margin: 0; overflow-wrap: anywhere; }
+.notice {
+  border-left: 3px solid var(--accent);
+  background: var(--tag-bg);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 18px;
+  max-width: 62ch;
+  margin: 0 0 18px;
+}
+.notice p { margin: 0 0 8px; text-align: justify; hyphens: auto; }
+.notice p:last-child { margin-bottom: 0; }
+.steps { padding-left: 20px; max-width: 62ch; }
+.steps li { margin-bottom: 8px; text-align: justify; hyphens: auto; }
+
+.shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 20px 16px;
+}
+.shots figure { margin: 0; min-width: 0; }
+.shots img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 12px;
+  border: 1px solid var(--hairline);
+}
+.shots figcaption {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+.shots .wide { grid-column: 1 / -1; max-width: 560px; }
+.shots .wide img { border-radius: 10px; }
+
+.toc {
+  columns: 2;
+  column-gap: 32px;
+  padding-left: 20px;
+  margin: 0 0 32px;
+  max-width: 62ch;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+.toc li { margin-bottom: 6px; break-inside: avoid; }
+@media (max-width: 520px) { .toc { columns: 1; } }
+
+.manual h3 { scroll-margin-top: 84px; }
+.manual p, .manual li, .feedback p { text-align: justify; hyphens: auto; }
+.manual h4 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 17px;
+  margin: 26px 0 8px;
+}
+.manual figure.inline {
+  float: right;
+  width: 168px;
+  margin: 4px 0 16px 28px;
+}
+.manual figure.inline img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 10px;
+  border: 1px solid var(--hairline);
+}
+.manual figure.inline figcaption {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.manual .clear { clear: both; }
+@media (max-width: 640px) {
+  .manual figure.inline { float: none; width: 56%; margin: 8px auto 20px; }
+}
+.manual kbd {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--tag-bg);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+.manual table {
+  border-collapse: collapse;
+  font-size: 14.5px;
+  margin: 10px 0 20px;
+  max-width: 62ch;
+}
+.manual th, .manual td {
+  text-align: left;
+  vertical-align: top;
+  padding: 7px 14px 7px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.manual th { font-family: var(--mono); font-weight: 400; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+</style>
+</head>
+<body>
+<!-- Takt site body — assembled into output/takt-site/index.html by takt-site/build.sh -->
+<div class="wrap">
+  <header class="top">
+    <a class="wordmark" href="/">Takt</a>
+    <nav class="top-nav" aria-label="Sections">
+      <a href="#download">Download</a>
+      <a href="#screens">Screens</a>
+      <a href="#manual">Manual</a>
+      <a href="#feedback">Feedback</a>
+    </nav>
+    <div class="mode-picker" role="group" aria-label="Color mode">
+      <button type="button" data-m="light">Light</button>
+      <button type="button" data-m="dark">Dark</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <p class="eyebrow">Free rowing app for Android · version 0.3, in development</p>
+      <h1>A SpeedCoach in your pocket.</h1>
+      <p class="thesis">
+        Takt shows stroke rate, split per 500 m, speed, distance and heart rate
+        on the water, using nothing but the phone's GPS and accelerometer. Set up
+        pieces and workouts, row them on the water or on a Concept2 erg, and
+        export every session as a GPX or TCX file.
+      </p>
+      <p class="now">
+        <span class="it">No account</span><span class="sep">·</span><span class="it">no ads</span><span class="sep">·</span><span class="it">no analytics</span><span class="sep">·</span><span class="it">no server</span><span class="sep">·</span><span class="it">open source, GPL-3.0</span><span class="sep">·</span><span class="it">Android 8.0 and up</span>
+      </p>
+      <nav class="links" aria-label="Quick links">
+        <a href="#download" class="cv-link">Download the APK ↓</a>
+        <a href="#manual">Read the manual</a>
+        <a href="https://github.com/Corentin-Sueur/takt" rel="noopener">Source on GitHub</a>
+      </nav>
+    </section>
+
+    <section id="download" class="section">
+      <h2>Download</h2>
+      <div class="section-body">
+        <div class="dl">
+          <nav class="links" aria-label="Download">
+            <a href="https://github.com/Corentin-Sueur/takt-site/releases/download/v0.3/takt-0.3.apk" class="cv-link" data-track="apk-download">takt-0.3.apk ↓</a>
+            <a href="https://github.com/Corentin-Sueur/takt-site/releases" rel="noopener">All releases</a>
+          </nav>
+          <dl>
+            <dt>Version</dt><dd>0.3 (build 3) · signed release</dd>
+            <dt>Size</dt><dd>13 MB</dd>
+            <dt>Requires</dt><dd>Android 8.0 (API 26) or later · no Google Play services needed</dd>
+            <dt>APK SHA-256</dt><dd>96f91153197b700d370fdb5ab7c46818d21b32849c77e3b2143499b9d50958bb</dd>
+            <dt>Signing key</dt><dd>cfc704ed858a69289d448d56262efd812ec768869da6a807af90ad3ae208070a</dd>
+          </dl>
+        </div>
+        <div class="notice">
+          <p><strong>Signed with the developer's key.</strong> Android still warns
+            about apps installed from outside the Play Store; that is expected.
+            Later versions install over this one, and the signing-key fingerprint
+            above lets you check that a file really came from here. If you
+            installed the earlier debug build, uninstall it first: it was signed
+            with a different key, so this one cannot replace it. Export the
+            sessions you want to keep before you do.</p>
+          <p>Takt is early software. The stroke detector has been tested on
+            recorded signals and in the demo mode, and is still being proven in a
+            real boat. Treat the first outings as a trial, and keep the SpeedCoach
+            in the boat until you trust it.</p>
+        </div>
+        <h4>Install</h4>
+        <ol class="steps">
+          <li>Open the APK on the phone, from the browser's downloads or from Files.</li>
+          <li>Android asks to allow installs from this source. Allow it for the browser or Files app, then come back.</li>
+          <li>Tap Install. The first launch asks for location (the GPS) and, when you add a strap or an erg, for Bluetooth.</li>
+          <li>In Settings, allow Takt to run without battery optimisation, or Android may pause the GPS mid-row.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="screens" class="section">
+      <h2>Screens</h2>
+      <div class="section-body">
+        <p class="section-intro">
+          Every screen in the app, rendered from the current build. Dark is the
+          default on the water; a light theme is one tap away in Settings.
+        </p>
+        <div class="shots">
+          <figure><img src="/assets/screens/home.webp" alt="Home screen: a large Row button, a Race button, workout chips, the strap status and recent sessions" loading="lazy" width="540" height="1202"><figcaption>Home</figcaption></figure>
+          <figure><img src="/assets/screens/row.webp" alt="Row screen with four tiles: rate 24, split 2:05, time 12:34, distance 3 240, heart rate 152, and Row, Piece and Stop buttons" loading="lazy" width="540" height="1202"><figcaption>Row · tiles</figcaption></figure>
+          <figure><img src="/assets/screens/row-light.webp" alt="The same Row screen in the light theme" loading="lazy" width="540" height="1202"><figcaption>Row · light theme</figcaption></figure>
+          <figure><img src="/assets/screens/focus.webp" alt="Focus page: one huge number, the stroke rate 24, with an arrow pointing up to the target band" loading="lazy" width="540" height="1202"><figcaption>Row · focus</figcaption></figure>
+          <figure><img src="/assets/screens/layout.webp" alt="Layout sheet: a tile count selector from 1 to 6 and the field chosen for each tile" loading="lazy" width="540" height="1202"><figcaption>Layout sheet</figcaption></figure>
+          <figure><img src="/assets/screens/stroke.webp" alt="Live stroke page: the acceleration curve of the current stroke drawn over the typical stroke" loading="lazy" width="540" height="1202"><figcaption>Live stroke</figcaption></figure>
+          <figure><img src="/assets/screens/piece.webp" alt="Piece setup: distance chips, a distance field with a range error, target split and rate, metronome, and countdown chips" loading="lazy" width="540" height="1202"><figcaption>Piece setup</figcaption></figure>
+          <figure><img src="/assets/screens/countdown.webp" alt="Full-screen countdown showing 3 before an interval" loading="lazy" width="540" height="1202"><figcaption>Countdown</figcaption></figure>
+          <figure><img src="/assets/screens/rest.webp" alt="Row screen during a workout rest: step 2 of 5, rest 0:42 in the header" loading="lazy" width="540" height="1202"><figcaption>Workout rest</figcaption></figure>
+          <figure><img src="/assets/screens/workout.webp" alt="Workout editor: a named workout with a 2000 m step and a 4 by 4:00 interval step, each with a rest after" loading="lazy" width="540" height="1202"><figcaption>Workout editor</figcaption></figure>
+          <figure><img src="/assets/screens/session.webp" alt="Session detail: boat and notes, summary tiles, and a chart of rate, heart rate and split" loading="lazy" width="540" height="1202"><figcaption>Session</figcaption></figure>
+          <figure><img src="/assets/screens/settings.webp" alt="Settings: sensors with a strap and two saved ergs, battery optimisation, recording and display options" loading="lazy" width="540" height="1202"><figcaption>Settings</figcaption></figure>
+          <figure><img src="/assets/screens/erg-row.webp" alt="Erg row screen: split, rate, watts and distance, with a Link lost warning in the header" loading="lazy" width="540" height="1202"><figcaption>Erg · row</figcaption></figure>
+          <figure><img src="/assets/screens/force.webp" alt="Force page: the last force curve drawn over the typical curve" loading="lazy" width="540" height="1202"><figcaption>Erg · force curve</figcaption></figure>
+          <figure><img src="/assets/screens/erg-session.webp" alt="Erg session detail with drag factor, average power and a power lane in the chart" loading="lazy" width="540" height="1202"><figcaption>Erg · session</figcaption></figure>
+          <figure><img src="/assets/screens/erg-test.webp" alt="Erg test screen: the connected PM5, its characteristics, decoded notifications and the last trace lines" loading="lazy" width="540" height="1202"><figcaption>Erg test</figcaption></figure>
+          <figure><img src="/assets/screens/race-setup.webp" alt="Race setup: tick the ergs that race, choose distance or time, and a countdown" loading="lazy" width="540" height="1202"><figcaption>Race setup</figcaption></figure>
+          <figure><img src="/assets/screens/race.webp" alt="Race screen: three lanes ordered by position with distance, split, rate, a false start and a lost link" loading="lazy" width="540" height="1202"><figcaption>Race</figcaption></figure>
+          <figure><img src="/assets/screens/race-detail.webp" alt="Race result: a ranking table and a progress chart of distance against time" loading="lazy" width="540" height="1202"><figcaption>Race result</figcaption></figure>
+          <figure class="wide"><img src="/assets/screens/row-landscape.webp" alt="Row screen in landscape: five tiles with the Pause, Piece and Stop buttons in a column on the right" loading="lazy" width="1200" height="540"><figcaption>Row · landscape</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="manual" class="section">
+      <h2>Manual</h2>
+      <div class="section-body prose manual">
+        <ol class="toc">
+          <li><a href="#m-start">Getting started</a></li>
+          <li><a href="#m-row">The Row screen</a></li>
+          <li><a href="#m-pieces">Pieces</a></li>
+          <li><a href="#m-workouts">Workouts</a></li>
+          <li><a href="#m-cues">Cues: targets, metronome, voice</a></li>
+          <li><a href="#m-after">After the row</a></li>
+          <li><a href="#m-export">Export and share</a></li>
+          <li><a href="#m-strap">Heart-rate strap</a></li>
+          <li><a href="#m-erg">Concept2 PM5</a></li>
+          <li><a href="#m-race">Racing ergs</a></li>
+          <li><a href="#m-settings">Settings</a></li>
+          <li><a href="#m-demo">Demo and coach mode</a></li>
+          <li><a href="#m-trouble">Troubleshooting</a></li>
+          <li><a href="#m-privacy">Privacy and licence</a></li>
+        </ol>
+
+        <h3 id="m-start">Getting started</h3>
+        <figure class="inline"><img src="/assets/screens/home.webp" alt="" loading="lazy" width="540" height="1202"><figcaption>Home</figcaption></figure>
+        <p>
+          Takt needs nothing on the boat. Put the phone somewhere it can see the
+          sky and feel the boat move: a phone mount on the footstretcher, a
+          waterproof pouch clipped to the rigger, or a jacket pocket in a
+          launch. It finds each stroke from the accelerometer and the speed
+          from the GPS, so the phone has to move with the boat, not with you.
+        </p>
+        <p>
+          Home has one big button. <strong>Row</strong> starts a session on the
+          water, or on the erg when an erg is connected. Below it sit the
+          workout chips, the strap and erg status, and the last sessions.
+          <strong>Race</strong> appears whenever nothing is recording.
+        </p>
+        <p>
+          The first row is the free row: tap Row, wait for the GPS pin in the
+          header to turn green, and start rowing. The clock runs from the first
+          stroke, pauses by itself when the boat sits still, and the session is
+          saved when you press Stop.
+        </p>
+        <div class="clear"></div>
+
+        <h3 id="m-row">The Row screen</h3>
+        <figure class="inline"><img src="/assets/screens/row.webp" alt="" loading="lazy" width="540" height="1202"><figcaption>Tiles page</figcaption></figure>
+        <p>
+          The live screen is full screen, with a fixed header (GPS, strap, the
+          outing clock, the piece status) and three fixed buttons: <strong>Row</strong>
+          or <strong>Pause</strong>, <strong>Piece</strong>, and <strong>Stop</strong>.
+          Stop is a long press, so a wet thumb cannot end the outing. In
+          landscape the buttons move to a column on the right. Swipe from the
+          edge to see the system bars.
+        </p>
+        <p>Between the header and the buttons are four pages. Swipe sideways to move between them.</p>
+        <table>
+          <tr><th>Page</th><th>What it shows</th></tr>
+          <tr><td>Tiles</td><td>One to six tiles: rate, split per 500 m, speed, distance, time, strokes, distance per stroke, heart rate, projected finish, clock, and what is left of the work block or rest.</td></tr>
+          <tr><td>Focus</td><td>One number, huge, with an arrow when you are above or below the target. Tap to change the field.</td></tr>
+          <tr><td>Live stroke</td><td>The acceleration profile of the stroke you are rowing, drawn over your typical stroke.</td></tr>
+          <tr><td>Last 10</td><td>The last ten strokes side by side, to see whether the catch is drifting.</td></tr>
+        </table>
+        <p>
+          Tap a tile to cycle its field. Long-press a tile, or tap the grid
+          icon in the header, for the layout sheet: choose how many tiles and
+          which field each one shows. The water layout and the erg layout are
+          kept apart, so the erg can show watts without touching your water
+          setup. The <strong>LEFT</strong> tile turns to the warning colour in
+          the last five seconds or twenty metres of a block.
+        </p>
+        <div class="clear"></div>
+
+        <h3 id="m-pieces">Pieces</h3>
+        <figure class="inline"><img src="/assets/screens/piece.webp" alt="" loading="lazy" width="540" height="1202"><figcaption>Piece setup</figcaption></figure>
+        <p>
+          Tap <strong>Piece</strong> on the Row screen to arm a piece. Four kinds:
+          a <strong>distance</strong> (chips for 500 to 5000 m, or any value from
+          100 to 50 000 m), a <strong>time</strong> (entered as minutes and seconds),
+          <strong>intervals</strong> (work and rest, repeated), or an <strong>open</strong>
+          piece that runs until you end it. Every field shows its allowed range,
+          and Go stays disabled until the input is valid.
+        </p>
+        <p>
+          Each piece can carry a target split and rate, a metronome, and a
+          countdown: <strong>First stroke</strong> starts the piece when you take
+          the first stroke, or pick 3, 5 or 10 seconds of full-screen digits
+          ending in GO. An interval rest ends with GO on the exact second; no
+          first stroke is needed. The header reads ARMED until the piece
+          starts, then the piece status.
+        </p>
+        <p>
+          When a piece ends, the screen flashes DONE with a tone and the voice
+          says so; the flash never covers the buttons. Abandoning a piece asks
+          for confirmation. The outing carries on after the piece, so a 2 km
+          piece in the middle of a 12 km row is one session with one piece in
+          its table.
+        </p>
+        <div class="clear"></div>
+
+        <h3 id="m-workouts">Workouts</h3>
+        <figure class="inline"><img src="/assets/screens/workout.webp" alt="" loading="lazy" width="540" height="1202"><figcaption>Workout editor</figcaption></figure>
+        <p>
+          A workout is a saved sequence of pieces with rests, opened from the
+          chips on Home. Give it a name, add steps, and tap a step to edit it
+          in place: a 2000 m at a target split with a two-minute rest, then four
+          times four minutes with one minute rest, say. Chips give the common
+          rests; the fields take anything.
+        </p>
+        <p>
+          Start a workout from its chip. The header shows STEP i/n during work
+          and REST with the time left between steps; a REST flash and a tone
+          mark each change. The workout rows on the erg when one is connected,
+          exactly like the Row button.
+        </p>
+        <div class="clear"></div>
+
+        <h3 id="m-cues">Cues: targets, metronome, voice</h3>
+        <p>
+          Set a <strong>target band</strong> on a piece and the rate tile and the
+          Focus page show an arrow when you drift above or below it. The
+          <strong>metronome</strong> beeps at the target rate, so it follows the
+          piece rather than a fixed setting. The <strong>voice</strong> reads the
+          automatic 500 m splits ("rate 24, split 2 oh 5"), the countdown, GO,
+          Done and Rest, through the phone speaker or a headphone.
+        </p>
+        <p>
+          <strong>Auto pause</strong> stops the outing clock when the boat sits
+          still and restarts it on the next stroke, so a wait at the turn does
+          not sit in your average. It applies to the open outing, never inside
+          an armed piece. The header reads AUTO PAUSED while it is on; Pause is
+          the manual version.
+        </p>
+
+        <h3 id="m-after">After the row</h3>
+        <figure class="inline"><img src="/assets/screens/session.webp" alt="" loading="lazy" width="540" height="1202"><figcaption>Session detail</figcaption></figure>
+        <p>
+          Stop opens the boat and notes card: pick the boat class and type a
+          line about the conditions. Then the session: summary tiles (distance,
+          time, elapsed, average split, rate and heart rate, maximum heart rate,
+          strokes, metres per stroke), the map of the track, a chart with rate,
+          heart rate and split lanes, and the table of pieces with their
+          results.
+        </p>
+        <p>
+          <strong>History</strong> lists every session and race, newest first.
+          Swipe a session to delete it. A race is deleted from its own detail
+          screen. Sessions carry their source: WATER, ERG, SKI, BIKE, RACE, or
+          DEMO for the ones rowed from the demo source.
+        </p>
+        <div class="clear"></div>
+
+        <h3 id="m-export">Export and share</h3>
+        <p>
+          The <strong>Share</strong> button on a session offers the file as GPX or
+          TCX to any app on the phone through the Android share sheet: Garmin
+          Connect, Drive, mail, whatever you pick. <strong>Save to
+          file</strong> keeps a copy on the device. Erg sessions have no track,
+          so they share as TCX only. Races do not export yet.
+        </p>
+
+        <h3 id="m-strap">Heart-rate strap</h3>
+        <p>
+          Any Bluetooth LE strap works (Polar, Garmin, Wahoo, Coospo and the
+          rest). Settings, Sensors, <strong>Add sensor</strong> scans for straps
+          and ergs at once; picking a strap replaces the saved one. The strap
+          row shows Connected, In range or Not seen, and the heart in the Row
+          header turns red when the strap is live. Heart rate goes into the
+          tiles, the chart, the summary and the exports.
+        </p>
+
+        <h3 id="m-erg">Concept2 PM5</h3>
+        <figure class="inline"><img src="/assets/screens/erg-row.webp" alt="" loading="lazy" width="540" height="1202"><figcaption>Erg row</figcaption></figure>
+        <p>
+          Takt can take distance, pace, stroke rate, strokes, watts, drag
+          factor and heart rate from a Concept2 PM5 over Bluetooth instead of
+          the GPS and accelerometer. Add the erg under Settings, Sensors
+          (<strong>Add sensor</strong>; any number of ergs can be saved and
+          renamed with a long press), then <strong>Connect</strong> from the erg
+          card on Home. While an erg is connected the Row button reads Row on
+          the erg and starts an erg session, which asks for no location. The
+          connection is kept between sessions and dropped after a minute out
+          of range.
+        </p>
+        <p>
+          An erg session opens the piece setup first; the header reads JUST
+          ROW until a piece is armed and shows the drag factor once. The pages
+          are Tiles, Focus and <strong>Force</strong>: the last force curve over
+          the typical one, with the peak force of the stroke, in newtons or
+          pounds. Erg numbers refresh four times a second.
+        </p>
+        <h4>Programming the PM</h4>
+        <p>
+          When you arm a piece or a workout, Takt sends it to the PM, so the
+          monitor runs it and saves it in its own memory: a fixed distance or
+          time, fixed intervals, or a workout as variable intervals. Takt
+          stays the referee: if the PM rejects the frame, the session carries
+          on from the app's own clock. Pressing <strong>Menu</strong> on the PM
+          ends the session, as Stop does. Fifteen seconds after a piece ends,
+          the PM is sent back to Just Row so paddling counts again. The switch
+          is Settings, Recording, <strong>Program the PM</strong>; with it off,
+          leave the PM in Just Row and Takt runs everything itself.
+        </p>
+        <h4>SkiErg and BikeErg</h4>
+        <p>
+          Takt reads the machine type from the PM. A SkiErg is shown like a
+          rower. A BikeErg shows RPM instead of rate and the pace per 1000 m;
+          targets are per 1000 m and the voice says "cadence". The history
+          tag and the session summary name the machine.
+        </p>
+        <h4>Diagnostics</h4>
+        <p>
+          The PM5 decoding is new and was built from open-source parsers. If an
+          erg session looks wrong, Settings, Diagnostics, <strong>Erg test</strong>
+          connects the erg, shows the decoded numbers live, and writes a trace
+          file: row a few strokes and 500 m, compare the table with the PM
+          screen, then <strong>Report a problem</strong> on the same Diagnostics
+          page sends the trace with the email. The <strong>Log erg traffic</strong>
+          switch records every erg session the same way.
+        </p>
+        <div class="clear"></div>
+
+        <h3 id="m-race">Racing ergs</h3>
+        <figure class="inline"><img src="/assets/screens/race.webp" alt="" loading="lazy" width="540" height="1202"><figcaption>Race</figcaption></figure>
+        <p>
+          Two or more ergs, one phone. Tap <strong>Race</strong> on Home, tick the
+          ergs that race, choose distance or time and a countdown, and
+          <strong>Start race</strong> connects every erg and programs it with the
+          goal. Go lights up once two lanes are connected; the countdown runs
+          on the phone with the usual tones and digits.
+        </p>
+        <p>
+          Lanes are ordered by position with distance, pace, rate and the gap
+          to the leader. A lane that moves more than two metres between arming
+          and GO is marked False start and races on. A lane that loses its
+          link keeps its last distance and rejoins when the link returns. A
+          distance race finishes each lane at the goal, with the time
+          interpolated between samples; a time race reads every lane's distance
+          at the final second. The result goes to History with the RACE tag: a
+          ranking table and a progress chart of distance against time.
+        </p>
+        <div class="clear"></div>
+
+        <h3 id="m-settings">Settings</h3>
+        <table>
+          <tr><th>Section</th><th>What is there</th></tr>
+          <tr><td>Sensors</td><td>The strap and the saved ergs, with their status; Add sensor, rename, Forget.</td></tr>
+          <tr><td>Battery</td><td>One tap to take Takt out of battery optimisation, so the GPS keeps running with the screen off.</td></tr>
+          <tr><td>Recording</td><td>Auto pause, Program the PM, rate smoothing (per stroke or over two strokes).</td></tr>
+          <tr><td>Display</td><td>Speed in m/s or km/h, force in N or lbs, theme, keep the screen on.</td></tr>
+          <tr><td>Audio</td><td>Voice announcements, the metronome sound, tones.</td></tr>
+          <tr><td>Diagnostics</td><td>The app log, recorded traces, the erg log switch, Erg test, and Report a problem (a pre-filled email with the log and the latest trace).</td></tr>
+          <tr><td>Demo</td><td>Demo source, rate slider, "Stop rowing".</td></tr>
+          <tr><td>About</td><td>Version and licence.</td></tr>
+        </table>
+
+        <h3 id="m-demo">Demo and coach mode</h3>
+        <p>
+          <strong>Demo</strong> replaces the sensors with a simulated boat, so you
+          can learn the screens on the sofa: turn it on in Settings, set a rate
+          with the slider, and every screen behaves as on the water. Demo
+          sessions are tagged DEMO. With demo on, the race
+          setup offers two simulated lanes.
+        </p>
+        <p>
+          <strong>Coach mode</strong> is for the launch: tap once per stroke and
+          Takt reads a rate from your taps, for the crew that has no phone on
+          board.
+        </p>
+
+        <h3 id="m-trouble">Troubleshooting</h3>
+        <ul>
+          <li><strong>No strokes counted.</strong> The phone must move with the boat. A phone in a pocket on your body sees your body, not the hull.</li>
+          <li><strong>Split jumps around.</strong> GPS needs open sky and a minute to settle; wait for the green pin. Rate smoothing over two strokes calms the rate tile.</li>
+          <li><strong>GPS stops mid-row.</strong> Battery optimisation. Allow Takt in Settings, Battery, and keep the screen on if the phone is aggressive about it.</li>
+          <li><strong>The PM5 will not connect.</strong> A PM accepts one connection. Forget it in the phone's own Bluetooth settings, and close ErgData or any other app that holds it.</li>
+          <li><strong>The erg numbers disagree with the PM.</strong> Run the Erg test, then Settings, Diagnostics, Report a problem: the trace is attached for you. This is exactly what it is for.</li>
+        </ul>
+
+        <h3 id="m-privacy">Privacy and licence</h3>
+        <p>
+          Takt has no account, no analytics, no advertising and no server.
+          Sessions stay in the app's database on the phone. The only network
+          call is the one you start: the map tiles on a session screen. What
+          leaves the phone is the file you chose to share.
+        </p>
+        <p>
+          The source is on <a href="https://github.com/Corentin-Sueur/takt" rel="noopener">GitHub</a>
+          under the GPL-3.0. Takt was made for Akademiska Roddföreningen in
+          Stockholm and for anyone else who rows.
+        </p>
+      </div>
+    </section>
+
+    <section id="feedback" class="section">
+      <h2>Feedback</h2>
+      <div class="section-body feedback">
+        <p class="section-intro">
+          Takt is built by one rower for other rowers, so what you run into on
+          the water decides what gets built next. The quickest report is from
+          the app itself: Settings, Diagnostics, <strong>Report a problem</strong>
+          opens an email already filled with the app version, your phone and
+          Android version, the app log, and the latest erg trace when there is
+          one. No account needed. Ideas and bugs can also go to the public
+          tracker, which takes a GitHub account.
+        </p>
+        <nav class="links" aria-label="Feedback">
+          <a href="https://github.com/Corentin-Sueur/takt-site/issues/new?template=bug.yml" class="cv-link" rel="noopener" data-track="feedback-bug">Report a bug on GitHub</a>
+          <a href="https://github.com/Corentin-Sueur/takt-site/issues/new?template=feature.yml" rel="noopener" data-track="feedback-feature">Ask for a feature</a>
+          <a href="https://github.com/Corentin-Sueur/takt-site/issues" rel="noopener" data-track="feedback-issues">Open issues</a>
+          <a href="#" class="email-link">Email</a>
+        </nav>
+        <p class="section-intro" style="margin-top: 22px">
+          For an erg problem, turn on "Log erg traffic" or run the Erg test
+          first, reproduce it, then Report a problem so the trace rides along.
+          For a GPS or stroke problem, say where the phone was mounted. Every
+          report gets an answer.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <nav class="links" aria-label="Links">
+      <a href="https://corentinsueur.com/">← Corentin Sueur</a>
+      <a href="https://github.com/Corentin-Sueur/takt" rel="noopener">GitHub</a>
+      <a href="https://github.com/Corentin-Sueur/takt-site/issues" rel="noopener">Issues</a>
+      <a href="#" class="email-link">Email</a>
+      <a href="#download" class="cv-link">Download ↓</a>
+    </nav>
+    <p class="colophon">Stockholm · <span id="year"></span> · GPL-3.0</p>
+    <p class="colophon">Visits are counted with PostHog in the EU. Cookies, replay and heatmaps only if you accept: <a href="#" data-analytics-choice>change your choice</a>. The app itself has no analytics.</p>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var KEY = 'site-mode';
+    var buttons = document.querySelectorAll('.mode-picker button');
+    function set(m) {
+      root.setAttribute('data-mode', m);
+      try { localStorage.setItem(KEY, m); } catch (e) {}
+      buttons.forEach(function (b) { b.classList.toggle('active', b.dataset.m === m); });
+    }
+    var saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (e) {}
+    set(saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+    buttons.forEach(function (b) { b.addEventListener('click', function () { set(b.dataset.m); }); });
+
+    var u = ['corentin', 'sueur'].join('.');
+    var d = ['outlook', 'com'].join('.');
+    document.querySelectorAll('.email-link').forEach(function (a) {
+      a.href = 'mailto:' + u + '@' + d;
+      a.title = u + '@' + d;
+    });
+
+    var y = document.getElementById('year');
+    if (y) { y.textContent = new Date().getFullYear(); }
+  })();
+</script>
+<script async src="/assets/measure.js" data-token="phc_uqkPPV6nmZNTXvLzGwRRzxXNH4mDymN4vGTUTnHEhoHh" data-site="takt"></script>
+</body>
+</html>
