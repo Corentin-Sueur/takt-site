@@ -1,0 +1,25 @@
+name: Feature request
+description: Something Takt should do, or do differently
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The situation on the water or on the erg where Takt falls short.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help
+      description: What the app should show or do. A sketch or a photo of another device doing it is welcome.
+  - type: dropdown
+    id: often
+    attributes:
+      label: How often would you use it
+      options:
+        - Every outing
+        - Most weeks
+        - Now and then
+        - Once, for a specific event

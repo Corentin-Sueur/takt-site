@@ -1,0 +1,43 @@
+name: Bug report
+description: Something went wrong on the water, on the erg, or in the app
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Takt version
+      description: Settings, About
+      placeholder: "1.1 (build 2)"
+    validations:
+      required: true
+  - type: input
+    id: phone
+    attributes:
+      label: Phone and Android version
+      placeholder: "Pixel 7, Android 15"
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - On the water
+        - On a Concept2 erg
+        - Race
+        - Export, share or Strava
+        - Elsewhere in the app
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead. For a GPS or stroke problem, say where the phone was mounted.
+    validations:
+      required: true
+  - type: textarea
+    id: trace
+    attributes:
+      label: Trace or log
+      description: For an erg problem, the file from Settings, Diagnostics, Erg test, or the erg log. For a GPS problem, the GPX of the session. Drag the file into this box.
